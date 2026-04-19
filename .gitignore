@@ -8,3 +8,18 @@ captures
 .cxx
 local.properties
 xcuserdata
+
+# Xcode (iOS) Specific
+iosApp/iosApp.xcodeproj/project.xcworkspace/
+iosApp/iosApp.xcodeproj/xcuserdata/
+iosApp/iosApp.xcworkspace/
+DerivedData/
+*.xcuserstate
+
+*.keystore
+*.jks
+.env
+
+# Kotlin Multiplatform
+.kotlin/
+shared/build/
