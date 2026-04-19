@@ -1,40 +1,40 @@
 package com.example.timerapp.shared
 
 class TimerEngine {
-    private var startTimeMillis: Long = 0L
-    private var accumulatedMillis: Long = 0L
-    private var isRunning: Boolean = false
+
+    private var state = TimerState()
 
     fun start() {
-        if (isRunning) return
-        startTimeMillis = currentTimeMillis()
-        isRunning = true
+        if (state.isRunning) return
+        state = state.copy(isRunning = true)
     }
 
     fun pause() {
-        if (!isRunning) return
-        accumulatedMillis += currentTimeMillis() - startTimeMillis
-        isRunning = false
+        if (!state.isRunning) return
+        state = state.copy(isRunning = false)
+    }
+
+    fun addLap() {
+        // We use the already calculated formatted strings from the state
+        if (state.elapsedMillis > 0) {
+            val lapTime = "${state.formattedTime}${state.formattedMillis}"
+            val newLaps = listOf(lapTime) + state.laps
+            state = state.copy(laps = newLaps)
+        }
     }
 
     fun reset() {
-        startTimeMillis = 0L
-        accumulatedMillis = 0L
-        isRunning = false
+        // Completely reset the state to its initial values
+        state = TimerState(laps = emptyList())
     }
 
     fun tick(): TimerState {
-        val currentElapsed = if (isRunning) {
-            accumulatedMillis + (currentTimeMillis() - startTimeMillis)
-        } else {
-            accumulatedMillis
+        // If the timer is active, increment the time
+        if (state.isRunning) {
+            state = state.copy(elapsedMillis = state.elapsedMillis + 10)
         }
-
-        return TimerState(
-            elapsedMillis = currentElapsed,
-            isRunning = isRunning
-        )
+        return state
     }
 
-    fun getCurrentState(): TimerState = tick()
+    fun getCurrentState(): TimerState = state
 }

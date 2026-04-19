@@ -2,59 +2,98 @@ import SwiftUI
 import shared
 
 struct ContentView: View {
-    /**
-     * @StateObject ensures the ViewModel's lifecycle is tied to the View.
-     * It acts as the bridge connecting our Kotlin Multiplatform (KMP)
-     * shared logic to the native iOS UI.
-     */
     @StateObject private var viewModel = TimeriOSViewModel()
 
     var body: some View {
-        VStack(spacing: 30) {
-            
-            /** * Main Time Display
-             * Using an HStack to separate main units and fractional milliseconds.
-             */
-            HStack(alignment: .bottom, spacing: 0) {
-                // Main clock display (MM:SS) fetched from the shared state
-                Text(viewModel.state.formattedTime)
-                    .font(.system(size: 64, weight: .regular, design: .monospaced))
-                
-                // Milliseconds display (formatted as .SS)
-                Text(viewModel.state.formattedMillis)
-                    .font(.system(size: 32, weight: .regular, design: .monospaced))
-                    .padding(.bottom, 12) // Aligns with the baseline of the larger text
-            }
-            
-            /**
-             * Control Panel
-             * Horizontal arrangement for primary and secondary actions.
-             */
-            HStack(spacing: 20) {
-                
-                // Dynamic Start/Pause Toggle
-                Button(action: {
-                    // Logic flow depends on the current 'isRunning' state in the shared module
-                    if viewModel.state.isRunning {
-                        viewModel.pause()
-                    } else {
-                        viewModel.start()
-                    }
-                }) {
-                    Text(viewModel.state.isRunning ? "Pause" : "Start")
-                        .frame(width: 100)
-                }
-                .buttonStyle(.borderedProminent) // iOS native prominent styling
+        ZStack {
+            // Background color for a modern look
+            Color(UIColor.systemBackground).ignoresSafeArea()
 
-                // Reset Action
-                Button(action: {
-                    viewModel.reset()
-                }) {
-                    Text("Reset")
-                        .frame(width: 100)
+            VStack(spacing: 30) {
+                // Timer Display Section
+                VStack(spacing: -10) {
+                    HStack(alignment: .bottom, spacing: 0) {
+                        Text(viewModel.state.formattedTime)
+                            .font(.system(size: 80, weight: .thin, design: .monospaced))
+                            .foregroundColor(.primary)
+                        
+                        Text(viewModel.state.formattedMillis)
+                            .font(.system(size: 32, weight: .light, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 12)
+                    }
                 }
-                .buttonStyle(.bordered)
-                .tint(.red) // Visual cue for a destructive/reset action
+                .padding(.top, 60)
+
+                // Control Buttons
+                HStack(spacing: 20) {
+                    // Start/Pause Button
+                    Button(action: {
+                        viewModel.state.isRunning ? viewModel.pause() : viewModel.start()
+                    }) {
+                        Text(viewModel.state.isRunning ? "Pause" : "Start")
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(viewModel.state.isRunning ? Color.orange : Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(16)
+                    }
+
+                    // Lap Button
+                    Button(action: {
+                        viewModel.addLap()
+                    }) {
+                        Text("Lap")
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(Color(UIColor.secondarySystemBackground))
+                            .foregroundColor(.primary)
+                            .cornerRadius(16)
+                    }
+                    .disabled(viewModel.state.elapsedMillis == 0)
+
+                    // Reset Button (Icon version for a cleaner look)
+                    Button(action: {
+                        viewModel.reset()
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 20, weight: .bold))
+                            .frame(width: 60, height: 60)
+                            .background(Color.red.opacity(0.1))
+                            .foregroundColor(.red)
+                            .cornerRadius(16)
+                    }
+                }
+                .padding(.horizontal)
+
+                // Laps List Header
+                HStack {
+                    Text("LAP TIMES")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+
+                // Laps List
+                List {
+                    ForEach(Array(viewModel.state.laps.enumerated()), id: \.offset) { index, lapTime in
+                        HStack {
+                            Text("Lap \(viewModel.state.laps.count - index)")
+                                .fontWeight(.medium)
+                            Spacer()
+                            Text(lapTime)
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        .listRowBackground(Color(UIColor.secondarySystemBackground).opacity(0.5))
+                    }
+                }
+                .listStyle(InsetGroupedListStyle()) // Gives that classic iOS look
             }
         }
     }

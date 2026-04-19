@@ -69,4 +69,14 @@ class TimerViewModel : ViewModel() {
             }
         }
     }
+    fun addLap() {
+        // Accessing the private repository to add a lap
+        repository.addLap()
+
+        /**
+         * We update the private _state.value by calling tick().
+         * tick() returns the latest TimerState from the repository.
+         */
+        _timerState.value = repository.tick()
+    }
 }

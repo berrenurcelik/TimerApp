@@ -2,7 +2,8 @@ package com.example.timerapp.shared
 
 data class TimerState(
     val elapsedMillis: Long = 0L,
-    val isRunning: Boolean = false
+    val isRunning: Boolean = false,
+    val laps: List<String> = emptyList()
 ) {
     val formattedTime: String
         get() {

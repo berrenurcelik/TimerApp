@@ -9,6 +9,8 @@ class TimerRepository {
 
     fun reset() = engine.reset()
 
+    fun addLap() = engine.addLap()
+
     fun tick(): TimerState = engine.tick()
 
     fun getState(): TimerState = engine.getCurrentState()

@@ -10,29 +10,35 @@ import shared
 
 class TimeriOSViewModel: ObservableObject {
     private let repository = TimerRepository()
-    @Published var state = TimerState(elapsedMillis: 0, isRunning: false)
+    
+    // The source of truth for our SwiftUI views
+    @Published var state = TimerState(elapsedMillis: 0, isRunning: false, laps: [])
+    
     private var timer: Timer?
 
     func start() {
         repository.start()
-        startTicking()
+        // Poll the repository every 10ms to match Android's smoothness
+        timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { _ in
+            self.state = self.repository.tick()
+        }
     }
 
     func pause() {
         repository.pause()
         timer?.invalidate()
+        self.state = self.repository.getState()
     }
 
     func reset() {
         repository.reset()
         timer?.invalidate()
-        self.state = repository.tick()
+        self.state = self.repository.getState()
     }
 
-    private func startTicking() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { _ in
-            self.state = self.repository.tick()
-        }
+    func addLap() {
+        repository.addLap()
+        // Refresh state to show the new lap immediately
+        self.state = self.repository.getState()
     }
 }
