@@ -41,11 +41,14 @@ dependencies {
 
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.material.icons.extended)
 
     implementation(libs.compose.material3)
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+    implementation(libs.androidx.datastore.preferences)
 
     debugImplementation(libs.compose.ui.tooling)
 }

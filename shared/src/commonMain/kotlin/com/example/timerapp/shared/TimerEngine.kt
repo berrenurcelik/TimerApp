@@ -36,5 +36,13 @@ class TimerEngine {
         return state
     }
 
+    fun restore(elapsedMillis: Long, laps: List<String>) {
+        state = TimerState(
+            elapsedMillis = elapsedMillis,
+            isRunning = false,
+            laps = laps
+        )
+    }
+
     fun getCurrentState(): TimerState = state
 }

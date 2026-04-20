@@ -14,4 +14,8 @@ class TimerRepository {
     fun tick(): TimerState = engine.tick()
 
     fun getState(): TimerState = engine.getCurrentState()
+
+    fun restoreState(elapsedMillis: Long, laps: List<String>) =
+        engine.restore(elapsedMillis, laps)
+
 }
