@@ -10,6 +10,8 @@
 		058557BB273AAA24004C7B11 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557BA273AAA24004C7B11 /* Assets.xcassets */; };
 		058557D9273AAEEB004C7B11 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */; };
 		19482AE52F8EE0850039A327 /* TimeriOSViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19482AE42F8EE0830039A327 /* TimeriOSViewModel.swift */; };
+		19A560022F9E64390084B408 /* FocusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A560012F9E64390084B408 /* FocusView.swift */; };
+		19A560032F9E64390084B408 /* FocusiOSViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A560002F9E64390084B408 /* FocusiOSViewModel.swift */; };
 		2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152FB032600AC8F00CF470E /* iOSApp.swift */; };
 		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
 /* End PBXBuildFile section */
@@ -31,6 +33,8 @@
 		058557BA273AAA24004C7B11 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		19482AE42F8EE0830039A327 /* TimeriOSViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeriOSViewModel.swift; sourceTree = "<group>"; };
+		19A560002F9E64390084B408 /* FocusiOSViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusiOSViewModel.swift; sourceTree = "<group>"; };
+		19A560012F9E64390084B408 /* FocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusView.swift; sourceTree = "<group>"; };
 		2152FB032600AC8F00CF470E /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
 		7555FF7B242A565900829871 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7555FF82242A565900829871 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -76,6 +80,8 @@
 		7555FF7D242A565900829871 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
+				19A560002F9E64390084B408 /* FocusiOSViewModel.swift */,
+				19A560012F9E64390084B408 /* FocusView.swift */,
 				19482AE42F8EE0830039A327 /* TimeriOSViewModel.swift */,
 				058557BA273AAA24004C7B11 /* Assets.xcassets */,
 				7555FF82242A565900829871 /* ContentView.swift */,
@@ -187,6 +193,8 @@
 			files = (
 				2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,
+				19A560022F9E64390084B408 /* FocusView.swift in Sources */,
+				19A560032F9E64390084B408 /* FocusiOSViewModel.swift in Sources */,
 				19482AE52F8EE0850039A327 /* TimeriOSViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
