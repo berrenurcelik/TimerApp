@@ -1,5 +1,7 @@
 package com.example.timerapp.android
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,20 +11,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.content.Context
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -34,222 +33,233 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
 
+// Palette consistent with FocusScreen
+private val BgColor    = Color(0xFF050A18)
+private val AccentWork = Color(0xFF6200EE)
+private val AccentPause = Color(0xFF00BCD4)
+private val SurfaceDim = Color(0xFF0D1526)
+private val TextDim    = Color(0xFF8891A8)
 
 private val Context.timerDataStore by preferencesDataStore(name = "timer_prefs")
 private val KEY_ELAPSED = longPreferencesKey("elapsed_millis")
-private val KEY_LAPS = stringPreferencesKey("laps_json")
+private val KEY_LAPS    = stringPreferencesKey("laps_json")
 private val KEY_HISTORY = stringPreferencesKey("history_json")
-
-
-/**
- * A dedicated Composable file for the Timer UI.
- * This separates the UI logic from the Activity lifecycle.
- */
 
 @Composable
 fun TimerScreen(timerViewModel: TimerViewModel = viewModel()) {
     val context = LocalContext.current
-    val state by timerViewModel.timerState.collectAsState()
+    val state   by timerViewModel.timerState.collectAsState()
     val history by timerViewModel.history.collectAsState()
     val showHistory = remember { mutableStateOf(false) }
 
+    // ── Restore persisted state on first launch ──────────────────────────────
     LaunchedEffect(Unit) {
         val prefs = context.timerDataStore.data.first()
-        val elapsed = prefs[KEY_ELAPSED] ?: 0L
-        val lapsJson = prefs[KEY_LAPS] ?: "[]"
-        val lapsArray = JSONArray(lapsJson)
-        val laps = buildList {
-            for (i in 0 until lapsArray.length()) add(lapsArray.getString(i))
-        }
-        timerViewModel.restoreState(elapsed, laps)
-
-        val historyJson = prefs[KEY_HISTORY] ?: "[]"
-        val historyArray = JSONArray(historyJson)
-        val sessions = buildList {
-            for (i in 0 until historyArray.length()) {
-                val obj = historyArray.getJSONObject(i)
-                val lapsArr = obj.getJSONArray("laps")
-                val lapsList = buildList {
-                    for (j in 0 until lapsArr.length()) add(lapsArr.getString(j))
-                }
-                add(
-                    TimerSession(
-                        id = obj.getString("id"),
-                        createdAt = obj.getLong("createdAt"),
-                        totalElapsedMillis = obj.getLong("totalElapsedMillis"),
-                        laps = lapsList
-                    )
-                )
+        val lapsArray = JSONArray(prefs[KEY_LAPS] ?: "[]")
+        timerViewModel.restoreState(
+            prefs[KEY_ELAPSED] ?: 0L,
+            buildList { for (i in 0 until lapsArray.length()) add(lapsArray.getString(i)) }
+        )
+        val histArr = JSONArray(prefs[KEY_HISTORY] ?: "[]")
+        timerViewModel.restoreHistory(buildList {
+            for (i in 0 until histArr.length()) {
+                val o = histArr.getJSONObject(i)
+                val ll = o.getJSONArray("laps")
+                add(TimerSession(
+                    id = o.getString("id"), createdAt = o.getLong("createdAt"),
+                    totalElapsedMillis = o.getLong("totalElapsedMillis"),
+                    laps = buildList { for (j in 0 until ll.length()) add(ll.getString(j)) }
+                ))
             }
-        }
-        timerViewModel.restoreHistory(sessions)
+        })
     }
 
+    // ── Persist on every change ───────────────────────────────────────────────
     LaunchedEffect(state.elapsedMillis, state.laps) {
-        val lapsJson = JSONArray(state.laps).toString()
-        context.timerDataStore.edit { prefs ->
-            prefs[KEY_ELAPSED] = state.elapsedMillis
-            prefs[KEY_LAPS] = lapsJson
+        context.timerDataStore.edit { p ->
+            p[KEY_ELAPSED] = state.elapsedMillis
+            p[KEY_LAPS]    = JSONArray(state.laps).toString()
         }
     }
-
     LaunchedEffect(history) {
-        val historyJsonArray = JSONArray()
-        history.forEach { session ->
-            val obj = JSONObject().apply {
-                put("id", session.id)
-                put("createdAt", session.createdAt)
-                put("totalElapsedMillis", session.totalElapsedMillis)
-                put("laps", JSONArray(session.laps))
-            }
-            historyJsonArray.put(obj)
+        val arr = JSONArray()
+        history.forEach { s ->
+            arr.put(JSONObject().apply {
+                put("id", s.id); put("createdAt", s.createdAt)
+                put("totalElapsedMillis", s.totalElapsedMillis)
+                put("laps", JSONArray(s.laps))
+            })
         }
-
-        context.timerDataStore.edit { prefs ->
-            prefs[KEY_HISTORY] = historyJsonArray.toString()
-        }
+        context.timerDataStore.edit { it[KEY_HISTORY] = arr.toString() }
     }
 
     if (showHistory.value) {
         HistoryDialogScreen(
-            sessions = history,
+            sessions  = history,
             onDismiss = { showHistory.value = false },
-            onDelete = { id -> timerViewModel.deleteSession(id) },
+            onDelete  = { id -> timerViewModel.deleteSession(id) },
             onClearAll = { timerViewModel.clearHistory() }
         )
     }
 
-    // Main Container with a dark themed background
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp)
+            .background(BgColor)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxSize()
         ) {
-            Spacer(modifier = Modifier.height(80.dp))
 
-            // Modern Timer Display inside a subtle surface
-            Surface(
-                tonalElevation = 4.dp,
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.padding(bottom = 40.dp)
+            // ── Timer + decorative ring ───────────────────────────────────────
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .padding(top = 72.dp)
+                    .size(260.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp)
-                ) {
-                    Text(
-                        text = state.formattedTime,
-                        fontSize = 72.sp,
-                        fontWeight = FontWeight.Light,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = state.formattedMillis,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Light,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(bottom = 14.dp)
-                    )
-                }
-            }
-
-            // High-end Control Buttons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Start/Pause Button with dynamic colors
-                Button(
-                    onClick = { if (state.isRunning) timerViewModel.pauseTimer() else timerViewModel.startTimer() },
-                    modifier = Modifier.weight(1.4f).height(60.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (state.isRunning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(if (state.isRunning) "PAUSE" else "START", fontWeight = FontWeight.Bold)
-                }
-
-                // Lap Button
-                OutlinedButton(
-                    onClick = { timerViewModel.addLap() },
-                    enabled = state.elapsedMillis > 0,
-                    modifier = Modifier.weight(1f).height(60.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text("LAP")
-                }
-
-                // Reset Button
-                IconButton(
-                    onClick = { timerViewModel.resetTimer() },
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(16.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Reset",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-
-                // History Button
-                IconButton(
-                    onClick = { showHistory.value = true },
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = "History",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                PulsingRingCanvas(isRunning = state.isRunning)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = state.formattedTime,
+                            fontSize = 62.sp, fontWeight = FontWeight.Thin,
+                            fontFamily = FontFamily.Monospace, color = Color.White
+                        )
+                        Text(
+                            text = state.formattedMillis,
+                            fontSize = 24.sp, fontWeight = FontWeight.Light,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(bottom = 10.dp)
+                        )
+                    }
+                    if (state.laps.isNotEmpty()) {
+                        Text(
+                            text = "LAP ${state.laps.size}",
+                            fontSize = 11.sp, letterSpacing = 3.sp,
+                            color = AccentPause.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Elegant Laps List
-            Text(
-                text = "LAP TIMES",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.align(Alignment.Start).padding(bottom = 8.dp)
-            )
-
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            // ── Controls ─────────────────────────────────────────────────────
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
             ) {
-                itemsIndexed(state.laps) { index, lapTime ->
-                    val lapNumber = state.laps.size - index
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
-                    ) {
+                Button(
+                    onClick = { if (state.isRunning) timerViewModel.pauseTimer() else timerViewModel.startTimer() },
+                    modifier = Modifier.weight(1.5f).height(58.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (state.isRunning) AccentPause else AccentWork
+                    )
+                ) {
+                    Text(
+                        text = if (state.isRunning) "PAUSE" else "START",
+                        fontWeight = FontWeight.Bold, letterSpacing = 2.sp
+                    )
+                }
+                OutlinedButton(
+                    onClick = { timerViewModel.addLap() },
+                    enabled = state.elapsedMillis > 0,
+                    modifier = Modifier.weight(1f).height(58.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+                ) {
+                    Text("LAP", color = Color.White.copy(alpha = 0.7f), letterSpacing = 2.sp)
+                }
+                IconButton(
+                    onClick = { timerViewModel.resetTimer() },
+                    modifier = Modifier
+                        .size(58.dp)
+                        .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(16.dp))
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Reset",
+                        tint = Color.White.copy(alpha = 0.55f))
+                }
+                IconButton(
+                    onClick = { showHistory.value = true },
+                    modifier = Modifier
+                        .size(58.dp)
+                        .background(AccentWork.copy(alpha = 0.16f), RoundedCornerShape(16.dp))
+                ) {
+                    Icon(Icons.Default.History, contentDescription = "History",
+                        tint = AccentWork.copy(alpha = 0.9f))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // ── Lap list ─────────────────────────────────────────────────────
+            if (state.laps.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("LAP",  fontSize = 11.sp, letterSpacing = 3.sp, color = TextDim)
+                    Text("TIME", fontSize = 11.sp, letterSpacing = 3.sp, color = TextDim)
+                }
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    itemsIndexed(state.laps) { index, lapTime ->
+                        val lapNumber = state.laps.size - index
+                        val isLatest  = index == 0
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (isLatest) AccentWork.copy(alpha = 0.12f) else SurfaceDim,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Lap $lapNumber", fontWeight = FontWeight.Medium)
-                            Text(lapTime, fontFamily = FontFamily.Monospace)
+                            Text(
+                                "Lap $lapNumber",
+                                fontWeight = if (isLatest) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isLatest) Color.White else Color.White.copy(alpha = 0.65f),
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                lapTime,
+                                fontFamily = FontFamily.Monospace,
+                                color = if (isLatest) AccentWork else Color.White.copy(alpha = 0.5f),
+                                fontSize = 14.sp
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+// Subtle double-ring behind the timer; pulses when running
+@Composable
+private fun PulsingRingCanvas(isRunning: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition(label = "timerPulse")
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "ringPulse"
+    )
+    val alpha = if (isRunning) 0.18f + pulse * 0.14f else 0.07f
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val r1 = size.minDimension / 2f - 8f
+        val r2 = r1 - 12f
+        drawCircle(color = AccentWork, radius = r1, center = center,
+            style = Stroke(1.5f), alpha = alpha)
+        drawCircle(color = AccentWork, radius = r2, center = center,
+            style = Stroke(0.7f), alpha = alpha * 0.45f)
     }
 }
 
@@ -262,63 +272,45 @@ fun HistoryDialogScreen(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("History") },
+        containerColor   = Color(0xFF0D1526),
+        title = {
+            Text("History", color = Color.White,
+                fontWeight = FontWeight.Light, letterSpacing = 2.sp)
+        },
         text = {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 400.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (sessions.isEmpty()) {
                     item {
-                        Text("No sessions yet", modifier = Modifier.padding(16.dp))
+                        Text("No sessions yet", color = TextDim,
+                            modifier = Modifier.padding(16.dp))
                     }
                 } else {
                     itemsIndexed(sessions) { _, session ->
-                        Card(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
+                                .background(Color(0xFF151F33), RoundedCornerShape(10.dp))
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(formatDuration(session.totalElapsedMillis),
+                                    color = Color.White, fontWeight = FontWeight.Medium, fontSize = 15.sp,
+                                    fontFamily = FontFamily.Monospace)
+                                Text(formatDate(session.createdAt), color = TextDim, fontSize = 11.sp)
+                                if (session.laps.isNotEmpty())
+                                    Text("${session.laps.size} laps", color = TextDim, fontSize = 11.sp)
+                            }
+                            IconButton(
+                                onClick = { onDelete(session.id) },
+                                modifier = Modifier.size(32.dp)
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = formatDuration(session.totalElapsedMillis),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
-                                    Text(
-                                        text = formatDate(session.createdAt),
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.outline
-                                    )
-                                    Text(
-                                        text = "Laps: ${session.laps.size}",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.outline
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { onDelete(session.id) },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Refresh,
-                                        contentDescription = "Delete",
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                Icon(Icons.Default.Refresh, contentDescription = "Delete",
+                                    tint = Color(0xFFCF6679), modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -326,34 +318,24 @@ fun HistoryDialogScreen(
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("Close")
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = AccentWork)
             }
         },
         dismissButton = {
             if (sessions.isNotEmpty()) {
-                Button(
-                    onClick = onClearAll,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Clear All")
+                TextButton(onClick = onClearAll) {
+                    Text("Clear All", color = Color(0xFFCF6679))
                 }
             }
         }
     )
 }
 
-private fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
-}
+private fun formatDate(timestamp: Long): String =
+    SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(timestamp))
 
 private fun formatDuration(millis: Long): String {
-    val totalSeconds = millis / 1000
-    val minutes = (totalSeconds / 60) % 60
-    val seconds = totalSeconds % 60
-    val hundredths = (millis % 1000) / 10
-    return String.format("%02d:%02d.%02d", minutes, seconds, hundredths)
+    val s = millis / 1000
+    return String.format("%02d:%02d.%02d", (s / 60) % 60, s % 60, (millis % 1000) / 10)
 }
