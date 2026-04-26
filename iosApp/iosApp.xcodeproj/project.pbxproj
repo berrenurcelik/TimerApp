@@ -12,6 +12,8 @@
 		19482AE52F8EE0850039A327 /* TimeriOSViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19482AE42F8EE0830039A327 /* TimeriOSViewModel.swift */; };
 		19A560022F9E64390084B408 /* FocusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A560012F9E64390084B408 /* FocusView.swift */; };
 		19A560032F9E64390084B408 /* FocusiOSViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A560002F9E64390084B408 /* FocusiOSViewModel.swift */; };
+		19A560052F9E918A0084B408 /* libsqlite3.0.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 19A560042F9E918A0084B408 /* libsqlite3.0.tbd */; };
+		19A560072F9E96CB0084B408 /* FocusHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A560062F9E96CB0084B408 /* FocusHistoryView.swift */; };
 		2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152FB032600AC8F00CF470E /* iOSApp.swift */; };
 		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
 /* End PBXBuildFile section */
@@ -35,6 +37,8 @@
 		19482AE42F8EE0830039A327 /* TimeriOSViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeriOSViewModel.swift; sourceTree = "<group>"; };
 		19A560002F9E64390084B408 /* FocusiOSViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusiOSViewModel.swift; sourceTree = "<group>"; };
 		19A560012F9E64390084B408 /* FocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusView.swift; sourceTree = "<group>"; };
+		19A560042F9E918A0084B408 /* libsqlite3.0.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.0.tbd; path = usr/lib/libsqlite3.0.tbd; sourceTree = SDKROOT; };
+		19A560062F9E96CB0084B408 /* FocusHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusHistoryView.swift; sourceTree = "<group>"; };
 		2152FB032600AC8F00CF470E /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
 		7555FF7B242A565900829871 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7555FF82242A565900829871 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -46,6 +50,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				19A560052F9E918A0084B408 /* libsqlite3.0.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +85,7 @@
 		7555FF7D242A565900829871 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
+				19A560062F9E96CB0084B408 /* FocusHistoryView.swift */,
 				19A560002F9E64390084B408 /* FocusiOSViewModel.swift */,
 				19A560012F9E64390084B408 /* FocusView.swift */,
 				19482AE42F8EE0830039A327 /* TimeriOSViewModel.swift */,
@@ -95,6 +101,7 @@
 		7555FFB0242A642200829871 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				19A560042F9E918A0084B408 /* libsqlite3.0.tbd */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -191,6 +198,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				19A560072F9E96CB0084B408 /* FocusHistoryView.swift in Sources */,
 				2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,
 				19A560022F9E64390084B408 /* FocusView.swift in Sources */,

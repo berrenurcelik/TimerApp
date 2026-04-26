@@ -1,0 +1,31 @@
+CREATE TABLE FocusSession (
+    id         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    date       TEXT    NOT NULL,
+    focusSecs  INTEGER NOT NULL DEFAULT 0,
+    pauseCount INTEGER NOT NULL DEFAULT 0,
+    roundsDone INTEGER NOT NULL DEFAULT 0,
+    startedAt  INTEGER NOT NULL
+);
+
+getAllTimeFocusSecs:
+SELECT COALESCE(SUM(focusSecs), 0) AS total FROM FocusSession;
+
+getTodayFocusSecs:
+SELECT COALESCE(SUM(focusSecs), 0) AS total FROM FocusSession WHERE date = :date;
+
+getDailySummaries:
+SELECT
+    date,
+    COALESCE(SUM(focusSecs),  0) AS totalFocusSecs,
+    COALESCE(SUM(pauseCount), 0) AS totalPauseCount,
+    COUNT(*)                      AS sessionCount
+FROM FocusSession
+GROUP BY date
+ORDER BY date DESC;
+
+insertSession:
+INSERT INTO FocusSession(date, focusSecs, pauseCount, roundsDone, startedAt)
+VALUES (:date, :focusSecs, :pauseCount, :roundsDone, :startedAt);
+
+clearAll:
+DELETE FROM FocusSession;

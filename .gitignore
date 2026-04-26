@@ -18,6 +18,8 @@ DerivedData/
 
 *.keystore
 *.jks
+*.apk
+*.aab
 .env
 
 # Kotlin Multiplatform

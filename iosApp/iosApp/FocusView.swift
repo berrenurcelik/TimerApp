@@ -1,21 +1,82 @@
 import SwiftUI
 import shared
 
-// MARK: - Root Screen
+// MARK: - Root
 
 struct FocusView: View {
     @StateObject private var vm = FocusiOSViewModel()
+    @State private var showSettings = false
 
     var body: some View {
         ZStack {
             Color(red: 0.02, green: 0.04, blue: 0.09).ignoresSafeArea()
-            GalaxyView(state: vm.state)
+            GalaxyView(state: vm.state, allTimeSecs: vm.allTimeSecs)
             FocusControlsView(
-                state   : vm.state,
-                onStart : { vm.start() },
-                onPause : { vm.pause() },
-                onReset : { vm.reset() }
+                state      : vm.state,
+                onStart    : { vm.start() },
+                onPause    : { vm.pause() },
+                onReset    : { vm.reset() },
+                onSettings : { showSettings = true }
             )
+        }
+        .sheet(isPresented: $showSettings) {
+            SessionSettingsSheet(vm: vm)
+        }
+    }
+}
+
+// MARK: - Settings Sheet
+
+struct SessionSettingsSheet: View {
+    @ObservedObject var vm: FocusiOSViewModel
+    @Environment(\.dismiss) var dismiss
+
+    @State private var work:       Int = 25
+    @State private var shortBreak: Int = 5
+    @State private var longBreak:  Int = 15
+    @State private var rounds:     Int = 4
+
+    private let purple  = Color(red: 0.73, green: 0.53, blue: 1.0)
+    private let bg      = Color(red: 0.05, green: 0.08, blue: 0.15)
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Focus") {
+                    Stepper("Work: \(work) min", value: $work, in: 1...90)
+                    Stepper("Rounds: \(rounds)", value: $rounds, in: 1...8)
+                }
+                Section("Breaks") {
+                    Stepper("Short Break: \(shortBreak) min", value: $shortBreak, in: 1...30)
+                    Stepper("Long Break: \(longBreak) min",  value: $longBreak,  in: 5...60, step: 5)
+                }
+                Section {
+                    Text("Changes apply after Reset")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+            }
+            .navigationTitle("Session Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        vm.updateSettings(shared.FocusSettings(
+                            workMinutes:       Int32(work),
+                            shortBreakMinutes: Int32(shortBreak),
+                            longBreakMinutes:  Int32(longBreak),
+                            rounds:            Int32(rounds)
+                        ))
+                        dismiss()
+                    }
+                    .foregroundColor(purple)
+                }
+            }
+        }
+        .onAppear {
+            work       = Int(vm.settings.workMinutes)
+            shortBreak = Int(vm.settings.shortBreakMinutes)
+            longBreak  = Int(vm.settings.longBreakMinutes)
+            rounds     = Int(vm.settings.rounds)
         }
     }
 }
@@ -23,70 +84,75 @@ struct FocusView: View {
 // MARK: - Galaxy Canvas
 
 /**
- * Animated space background driven by FocusState:
- *   progress (0→1) → stars appear + ring fills
- *   round          → planet grows, star pattern refreshes
+ * Animated space background driven by FocusState + allTimeSecs:
+ *   focusSecs      → stars earned (1 per 5 min; white = DB history, purple = live session)
+ *   progress (0→1) → progress ring fills
+ *   round          → planet grows
  *   isOnBreak      → nebula glow pulses
  */
 struct GalaxyView: View {
     let state: shared.FocusState
+    let allTimeSecs: Int64
 
     @State private var animatedProgress: CGFloat = 0
     @State private var animatedPlanetRadius: CGFloat = 44
     @State private var nebulaPulse: CGFloat = 0
     @State private var stars: [StarPoint] = []
+    @State private var animatedStarCount: Int = 0
+
+    private let secsPerStar: Int64 = 300
+    private let starPool = 200
+
+    private var earnedStars: Int { min(Int((allTimeSecs + state.sessionFocusSecs) / secsPerStar), starPool) }
+    private var pastStars: Int   { min(Int(allTimeSecs / secsPerStar), starPool) }
 
     var body: some View {
         Canvas { context, size in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            drawStars(context: &context, size: size, progress: animatedProgress)
-            if state.isOnBreak {
-                drawNebula(context: &context, center: center, planetRadius: animatedPlanetRadius, pulse: nebulaPulse)
-            }
+            drawStars(context: &context, size: size, totalVisible: animatedStarCount, pastCount: pastStars)
+            if state.isOnBreak { drawNebula(context: &context, center: center, planetRadius: animatedPlanetRadius, pulse: nebulaPulse) }
             drawPlanet(context: &context, center: center, radius: animatedPlanetRadius)
             drawProgressRing(context: &context, center: center, progress: animatedProgress,
                              planetRadius: animatedPlanetRadius, isOnBreak: state.isOnBreak)
         }
         .ignoresSafeArea()
         .onAppear {
-            stars = generateStars(count: 160, seed: Int(state.round))
-            animatedProgress     = CGFloat(state.progress)
+            stars = generateStars(count: starPool, seed: 42)
+            animatedStarCount    = earnedStars
             animatedPlanetRadius = 44 + CGFloat(state.round - 1) * 16
-            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
-                nebulaPulse = 1
-            }
+            animatedProgress     = CGFloat(state.progress)
+            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) { nebulaPulse = 1 }
         }
         .onChange(of: state.progress) { newProgress in
-            withAnimation(.easeInOut(duration: 1.2)) {
-                animatedProgress = CGFloat(newProgress)
-            }
+            withAnimation(.easeInOut(duration: 1.2)) { animatedProgress = CGFloat(newProgress) }
         }
         .onChange(of: state.round) { newRound in
-            stars = generateStars(count: 160, seed: Int(newRound))
             withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
                 animatedPlanetRadius = 44 + CGFloat(newRound - 1) * 16
             }
         }
+        .onChange(of: earnedStars) { newCount in
+            withAnimation(.easeOut(duration: 1.5)) { animatedStarCount = newCount }
+        }
     }
 
-    private func drawStars(context: inout GraphicsContext, size: CGSize, progress: CGFloat) {
-        let visible = max(8, Int(progress * CGFloat(stars.count)))
-        for i in 0..<min(visible, stars.count) {
+    private func drawStars(context: inout GraphicsContext, size: CGSize, totalVisible: Int, pastCount: Int) {
+        for i in 0..<min(totalVisible, stars.count) {
             let s     = stars[i]
-            let frac  = CGFloat(i) / CGFloat(max(visible, 1))
-            let alpha = s.alpha * frac * (0.3 + progress * 0.7)
-            let rect  = CGRect(x: s.normX * size.width - s.radius, y: s.normY * size.height - s.radius,
-                               width: s.radius * 2, height: s.radius * 2)
-            context.fill(Path(ellipseIn: rect), with: .color(Color.white.opacity(alpha)))
+            let isPast = i < pastCount
+            let color  = isPast ? Color.white : Color(red: 0.73, green: 0.53, blue: 1.0)
+            let alpha  = Double(s.alpha) * (isPast ? 1.0 : 0.8)
+            context.fill(Path(ellipseIn: CGRect(x: s.normX * size.width - s.radius,
+                y: s.normY * size.height - s.radius, width: s.radius * 2, height: s.radius * 2)),
+                with: .color(color.opacity(alpha)))
         }
     }
 
     private func drawPlanet(context: inout GraphicsContext, center: CGPoint, radius: CGFloat) {
         let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
         context.fill(Path(ellipseIn: rect), with: .radialGradient(
-            Gradient(colors: [Color(red: 0.49, green: 0.30, blue: 1.0), Color(red: 0.10, green: 0.00, blue: 0.31)]),
-            center: center, startRadius: 0, endRadius: radius
-        ))
+            Gradient(colors: [Color(red: 0.49, green: 0.30, blue: 1.0), Color(red: 0.10, green: 0, blue: 0.31)]),
+            center: center, startRadius: 0, endRadius: radius))
     }
 
     private func drawNebula(context: inout GraphicsContext, center: CGPoint, planetRadius: CGFloat, pulse: CGFloat) {
@@ -102,7 +168,7 @@ struct GalaxyView: View {
                                   progress: CGFloat, planetRadius: CGFloat, isOnBreak: Bool) {
         let r     = planetRadius + 18
         let rect  = CGRect(x: center.x-r, y: center.y-r, width: r*2, height: r*2)
-        let color = isOnBreak ? Color(red: 0.00, green: 0.74, blue: 0.83) : Color(red: 0.38, green: 0.00, blue: 0.93)
+        let color = isOnBreak ? Color(red: 0, green: 0.74, blue: 0.83) : Color(red: 0.38, green: 0, blue: 0.93)
         context.stroke(Path(ellipseIn: rect), with: .color(color.opacity(0.15)), lineWidth: 5)
         if progress > 0 {
             var arc = Path()
@@ -115,12 +181,7 @@ struct GalaxyView: View {
 
 // MARK: - Star helpers
 
-struct StarPoint {
-    let normX: CGFloat
-    let normY: CGFloat
-    let radius: CGFloat
-    let alpha: CGFloat
-}
+struct StarPoint { let normX, normY, radius, alpha: CGFloat }
 
 private func generateStars(count: Int, seed: Int) -> [StarPoint] {
     var rng = SeededRandom(seed: UInt64(bitPattern: Int64(seed)))
@@ -143,42 +204,56 @@ struct SeededRandom {
 // MARK: - Controls
 
 struct FocusControlsView: View {
-    let state   : shared.FocusState
-    let onStart : () -> Void
-    let onPause : () -> Void
-    let onReset : () -> Void
+    let state      : shared.FocusState
+    let onStart    : () -> Void
+    let onPause    : () -> Void
+    let onReset    : () -> Void
+    let onSettings : () -> Void
 
-    private let workColor  = Color(red: 0.38, green: 0.00, blue: 0.93)
-    private let breakColor = Color(red: 0.00, green: 0.74, blue: 0.83)
+    private let workColor  = Color(red: 0.38, green: 0, blue: 0.93)
+    private let breakColor = Color(red: 0, green: 0.74, blue: 0.83)
 
     var body: some View {
         VStack {
-            VStack(spacing: 12) {
-                Text(state.phaseLabel)
-                    .font(.system(size: 13, weight: .light)).tracking(4)
-                    .foregroundColor(.white.opacity(0.72))
-                RoundDotsView(current: Int(state.round), total: Int(state.totalRounds))
+            HStack {
+                Spacer()
+                VStack(spacing: 12) {
+                    Text(state.phaseLabel)
+                        .font(.system(size: 13, weight: .light)).tracking(4)
+                        .foregroundColor(.white.opacity(0.72))
+                    RoundDotsView(current: Int(state.round), total: Int(state.totalRounds))
+                }
+                Spacer()
+                Button(action: onSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 18))
+                        .foregroundColor(state.isRunning ? .white.opacity(0.2) : .white.opacity(0.55))
+                }
+                .disabled(state.isRunning)
             }
-            .padding(.top, 88)
+            .padding(.top, 88).padding(.horizontal, 24)
 
             Spacer()
 
-            Text(state.isFinished ? "DONE!" : state.formattedTime)
+            Text(state.formattedTime)
                 .font(.system(size: 84, weight: .thin, design: .monospaced))
                 .foregroundColor(.white)
 
             Spacer()
 
             VStack(spacing: 14) {
+                if state.sessionFocusSecs > 0 {
+                    Text("\(state.formattedSessionTime) focused · \(state.pauseCount) pauses")
+                        .font(.system(size: 12)).tracking(1)
+                        .foregroundColor(.white.opacity(0.45))
+                }
                 Button(action: { state.isRunning ? onPause() : onStart() }) {
-                    Text(state.isFinished ? "Cycle Complete!" : state.isRunning ? "PAUSE" : "START")
+                    Text(state.isRunning ? "PAUSE" : "START")
                         .font(.system(size: 16, weight: .bold)).tracking(2)
                         .frame(maxWidth: .infinity).frame(height: 60)
                         .background(state.isRunning ? breakColor : workColor)
                         .foregroundColor(.white).cornerRadius(16)
                 }
-                .disabled(state.isFinished)
-
                 Button(action: onReset) {
                     Text("RESET")
                         .font(.system(size: 15)).tracking(2)

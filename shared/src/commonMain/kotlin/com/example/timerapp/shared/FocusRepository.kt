@@ -2,15 +2,23 @@ package com.example.timerapp.shared
 
 /**
  * Public facade over FocusEngine — the only shared class platform code touches.
- * No-arg constructor: Kotlin default params are not visible to Swift/Objective-C,
- * so the engine is created internally (same pattern as TimerRepository).
+ * Recreates the engine on applySettings() so new durations take effect after Reset.
  */
 class FocusRepository {
-    private val engine = FocusEngine()
+    private var engine = FocusEngine()
 
-    fun start() = engine.start()
-    fun pause() = engine.pause()
-    fun reset() = engine.reset()
+    fun applySettings(settings: FocusSettings) {
+        engine = FocusEngine(
+            workMillis       = settings.workMinutes.toLong()       * 60_000L,
+            shortBreakMillis = settings.shortBreakMinutes.toLong() * 60_000L,
+            longBreakMillis  = settings.longBreakMinutes.toLong()  * 60_000L,
+            totalRounds      = settings.rounds
+        )
+    }
+
+    fun start()  = engine.start()
+    fun pause()  = engine.pause()
+    fun reset()  = engine.reset()
 
     /** Advances engine by 1 s and returns the new state in one call. */
     fun tick(): FocusState {
